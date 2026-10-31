@@ -1,1 +1,30 @@
 
+# Fakta nyata dari default.xbe pengguna (bukan sintetis)
+
+Sumber: laporan xbe_info milik pengguna, 3.092.480 byte.
+
+- Build **retail** (entry raw 0xA8EE278B, XOR retail -> 0x00127020, di dalam .text)
+- base 0x00010000, size_of_image 0x00321AA0, init_flags 0x1 (MOUNT_UTILITY_DRIVE)
+- 13 section; .text 0x11000..0x2171F0; ada D3D, D3DX, XGRPH, DSOUND, XPP, DOLBY
+- Library: XDK build **5788** (XAPILIB, XBOXKRNL, LIBCMT, D3D8, D3DX8, XGRAPHC, DSOUND)
+- 158 ordinal kernel. Sebagian adalah DATA, bukan fungsi (ExEventObjectType,
+  KeTickCount, LaunchDataPage, XboxKrnlVersion, XboxHardwareInfo, ...): thunk-nya
+  menunjuk ke variabel yang harus kita sediakan di guest memory.
+- Cakupan shim (tes `--shimtest`): 15/158 implementasi, 26 stub, 117 belum ada.
+
+## Koreksi terhadap HANDOFF_PROMPT.md (terverifikasi ke pyxbe)
+1. Tabel ordinal lama SALAH total. Benar: NtClose=187, NtCreateFile=190,
+   NtOpenFile=202, NtQueryInformationFile=211, NtReadFile=219, NtWriteFile=236.
+2. Entry point & alamat thunk kernel di-XOR (retail 0xA8FC57AB / 0x5B6D40B6;
+   debug 0x94859D4B / 0xEFB1F152).
+3. Tabel thunk kernel = array u32 `0x80000000|ordinal`, BUKAN pointer ke stub `B8 ...`.
+4. Library version = 0x10 byte, nama inline (bukan pointer).
+5. Sertifikat: disc 0xA8, version 0xAC (bukan 0xB0/0xB4).
+6. 0x15C adalah import directory, bukan thunk non-kernel.
+Tes lama lulus karena XBE sintetis memakai asumsi salah yang sama (melingkar).
+Belum diverifikasi: semantik argumen KeQueryPerformanceCounter/Frequency di shim.
+
+## Status VFS (Milestone 1a)
+Cakupan shim terhadap 158 ordinal DRA2: 21 implementasi, 22 stub, 115 belum ada.
+VFS baru bisa diuji di PC dengan direktori biasa dan struktur buatan tes; belum pernah
+dipanggil oleh kode game asli (belum ada emulasi CPU).
